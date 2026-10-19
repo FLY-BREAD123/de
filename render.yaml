@@ -1,0 +1,26 @@
+# ⚔️ 피파 전쟁 봇 — Render Blueprint
+# 깃허브 레포 "맨 위"(package.json 이 있는 곳)에 이 파일을 두고
+# Render → New → Blueprint → 레포 선택 → DISCORD_TOKEN 입력 → Apply
+
+services:
+  - type: web # 무료는 Web Service 만 됨 (Background Worker 는 유료)
+    name: fifa-war-bot
+    runtime: node
+    plan: free
+    region: oregon
+    # 레포 안에 fifa-war-bot 폴더째로 올렸으면 아래 줄 앞의 # 지우기
+    # rootDir: fifa-war-bot
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit # 깃허브에 푸시하면 자동 재배포
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false # 처음 배포할 때 Render 화면에서 입력 (따옴표 없이)
+      # ── 선택 (필요할 때만 # 지우고 값 입력) ──
+      # - key: ALERT_CHANNEL_ID   # 기본 경보 채널 ID (/피파설정 이 우선)
+      #   value: "123456789012345678"
+      # - key: ALERT_ROLE_ID      # 경보 때 같이 핑할 역할 ID
+      #   value: "123456789012345678"
+      # - key: BOARD_PUBLIC       # false 면 웹 순위표 숨김
+      #   value: "true"
