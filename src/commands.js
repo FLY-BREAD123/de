@@ -12,10 +12,15 @@ const NONE = { parse: [] };
 
 let store = null;
 let runtime = null;
+let diag = null;
+
+// 서버별 슬래시 명령 등록 결과 → 진단에서 사용
+const state = new Map();
 
 function init(deps) {
   store = deps.store;
   runtime = deps.runtime;
+  diag = deps.diag || null;
 }
 
 const defs = [
@@ -46,16 +51,22 @@ const defs = [
     )
     .addRoleOption((o) => o.setName('경보역할').setDescription('경보 때 같이 핑할 역할'))
     .addBooleanOption((o) => o.setName('역할핑끄기').setDescription('경보 역할 핑 해제')),
+  new SlashCommandBuilder()
+    .setName('진단')
+    .setDescription('봇 자가진단 — 권한·채널·접속 문제와 해결법 (관리자)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ];
 const JSON_DEFS = defs.map((d) => d.toJSON());
 
 async function register(guild) {
   try {
-    await guild.commands.set(JSON_DEFS);
+    const set = await guild.commands.set(JSON_DEFS);
+    state.set(guild.id, { ok: true, count: set?.size ?? JSON_DEFS.length, at: Date.now() });
     console.log(`[cmd] ${guild.name}: 슬래시 명령 ${JSON_DEFS.length}개 등록`);
   } catch (err) {
+    state.set(guild.id, { ok: false, code: err.code ?? null, error: err.message, at: Date.now() });
     console.warn(
-      `[cmd] ${guild.name}: 명령 등록 실패 (${err.message}) — 초대 링크에 applications.commands 스코프가 있었는지 확인`,
+      `[cmd] ${guild.name}: 명령 등록 실패 (${err.code ?? ''} ${err.message}) — 초대 링크에 applications.commands 스코프가 있었는지 확인`,
     );
   }
 }
@@ -112,6 +123,9 @@ async function handle(i) {
 
     case '피파설정':
       return settings(i);
+
+    case '진단':
+      return diagnose(i);
 
     default:
       return i.reply({ content: '알 수 없는 명령이에요.', flags: EPH });
@@ -170,4 +184,15 @@ async function settings(i) {
   });
 }
 
-module.exports = { init, register, handle, JSON_DEFS };
+async function diagnose(i) {
+  if (!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+    return i.reply({ content: '🔒 서버 관리 권한이 필요해요.', flags: EPH });
+  }
+  if (!diag) return i.reply({ content: '진단 모듈이 없어요.', flags: EPH });
+  await i.deferReply({ flags: EPH });
+  await diag.refresh({ minGapMs: 15000 }).catch(() => {});
+  diag.runGuild(i.guild);
+  return i.editReply({ embeds: [diag.embed(i.guild)], allowedMentions: NONE });
+}
+
+module.exports = { init, register, handle, JSON_DEFS, state };

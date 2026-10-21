@@ -444,6 +444,7 @@ function helpEmbed(textEnabled) {
         '🏅 승 3점 · 무 1점 · 패 0점 — 승점 → 득실차 → 다득점 순',
         '🔥 연승 속보 · 🐔 도망 횟수도 기록됩니다',
         '⚙️ `/피파설정` — 경보 채널·역할 (관리자)',
+        '🩺 `/진단` — 봇 문제 자가진단 + 해결법 (관리자)',
       ].join('\n'),
     )
     .addFields({ name: '🎖️ 칭호 (누적 승리)', value: L.TITLES.map((t) => `${t.name} ${t.min}승`).join(' · ') });

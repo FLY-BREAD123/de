@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<title>피파 전쟁 자가진단</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script>(function(){var t;try{t=localStorage.getItem('fw-theme')}catch(e){}document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light')})()</script>
+<style>
+:root{
+  --paper:#fff;--ink:#000;--graphite:#5c5c5c;--rule:#e6e6e6;--haze:#f5f5f5;
+  --font:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  color-scheme:light;
+}
+:root[data-theme=dark]{--paper:#000;--ink:#fff;--graphite:#a3a3a3;--rule:#262626;--haze:#111;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.55;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.wrap{max-width:860px;margin:0 auto;padding:0 24px}
+a{color:inherit;text-underline-offset:3px}
+[hidden]{display:none!important}
+
+.masthead{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 0;border-bottom:1px solid var(--rule)}
+.brand{display:flex;align-items:baseline;gap:12px;min-width:0}
+.mark{font-size:22px;font-weight:900;letter-spacing:-.04em;white-space:nowrap;text-decoration:none}
+.sub{font-size:15px;color:var(--graphite);white-space:nowrap}
+.status{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--graphite);white-space:nowrap}
+.status i{width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--graphite)}
+.status.on i{background:var(--ink);box-shadow:none;animation:pulse 2.4s ease-out infinite}
+.status.wait i{box-shadow:inset 0 0 0 1.5px var(--ink);animation:blink 1s steps(2) infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ink) 40%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+@keyframes blink{50%{opacity:.25}}
+
+/* 핵심 문제 */
+.verdict{padding:52px 0 44px;border-bottom:1px solid var(--rule)}
+.v-label{margin:0 0 14px;font-size:14px;color:var(--graphite)}
+.v-title{margin:0;font-size:clamp(26px,4.6vw,40px);font-weight:800;letter-spacing:-.035em;line-height:1.22;word-break:keep-all;overflow-wrap:anywhere}
+.v-title.ok::before{content:"";display:inline-block;width:.62em;height:.62em;margin-right:.32em;border-radius:50%;background:var(--ink);vertical-align:.06em}
+.v-detail{margin:14px 0 0;color:var(--graphite);max-width:62ch}
+.steps{margin:26px 0 0;padding:0;list-style:none;counter-reset:s;max-width:66ch}
+.steps li{counter-increment:s;position:relative;padding:12px 0 12px 44px;border-top:1px solid var(--rule)}
+.steps li:last-child{border-bottom:1px solid var(--rule)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:11px;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:14px;font-weight:800}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin-top:28px}
+.btn{appearance:none;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);font:inherit;font-size:15px;font-weight:700;padding:10px 18px;border-radius:999px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:default}
+.note{font-size:14px;color:var(--graphite)}
+
+/* 검사 목록 */
+section.group{padding:36px 0 4px}
+h2{margin:0 0 10px;font-size:20px;font-weight:800;letter-spacing:-.025em}
+.rows{margin:0;padding:0;list-style:none;border-top:2px solid var(--ink)}
+.row{display:grid;grid-template-columns:64px 1fr;gap:14px;padding:13px 0;border-bottom:1px solid var(--rule)}
+.chip{justify-self:start;align-self:start;margin-top:1px;padding:1px 9px;border-radius:999px;border:1.5px solid var(--ink);font-size:12px;font-weight:700;line-height:1.6;white-space:nowrap}
+.chip.fail{background:var(--ink);color:var(--paper)}
+.chip.warn{background:var(--haze);border-color:var(--graphite)}
+.chip.info,.chip.skip{border-color:var(--rule);color:var(--graphite)}
+.chip.wait{border-style:dashed}
+.r-title{font-weight:600;overflow-wrap:anywhere}
+.row.ok .r-title,.row.info .r-title,.row.skip .r-title{font-weight:500}
+.r-detail{margin-top:3px;font-size:14px;color:var(--graphite);overflow-wrap:anywhere}
+.r-fix{margin:8px 0 2px;padding:0;list-style:none;font-size:14px}
+.r-fix li{position:relative;padding:3px 0 3px 18px;overflow-wrap:anywhere}
+.r-fix li::before{content:"";position:absolute;left:3px;top:.8em;width:7px;height:2px;background:var(--ink)}
+.r-ref{margin-top:6px;font-size:13px;color:var(--graphite)}
+.steps li,.r-title,.r-detail,.r-fix li,.v-detail{word-break:keep-all;overflow-wrap:anywhere}
+.timeline{margin:0;padding:0;list-style:none;border-top:2px solid var(--ink)}
+.timeline li{display:grid;grid-template-columns:64px 1fr;gap:14px;padding:8px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.timeline time{color:var(--graphite);font-variant-numeric:tabular-nums}
+footer{padding:40px 0 72px;font-size:13px;color:var(--graphite);line-height:1.8}
+footer p{margin:0}
+.fresh{animation:fresh 1.6s ease}
+@keyframes fresh{from{background:color-mix(in srgb,var(--ink) 9%,transparent)}to{background:transparent}}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .masthead{padding:16px 0}
+  .mark{font-size:19px}
+  .verdict{padding:36px 0 32px}
+  .row,.timeline li{grid-template-columns:52px 1fr;gap:10px}
+  .steps li{padding-left:40px}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand"><a class="mark" href="/">피파 전쟁</a><span class="sub">자가진단</span></div>
+    <span class="status wait" id="status" role="status"><i></i><span>확인 중</span></span>
+  </header>
+
+  <section class="verdict" aria-live="polite">
+    <p class="v-label" id="v-label">지금 상태</p>
+    <h1 class="v-title" id="v-title"></h1>
+    <p class="v-detail" id="v-detail" hidden></p>
+    <ol class="steps" id="v-steps" hidden></ol>
+    <div class="actions">
+      <button class="btn" id="rerun" type="button">지금 다시 검사</button>
+      <span class="note" id="v-note"></span>
+    </div>
+  </section>
+
+  <main id="groups"></main>
+
+  <section class="group" id="tl-wrap" hidden>
+    <h2>접속 과정</h2>
+    <ol class="timeline" id="timeline"></ol>
+  </section>
+
+  <section class="group" id="err-wrap" hidden>
+    <h2>최근 오류</h2>
+    <ul class="rows" id="errors"></ul>
+  </section>
+
+  <footer>
+    <p id="foot"></p>
+    <p>Render 로그에도 같은 진단이 <b>[진단]</b> 으로 찍혀요. 디스코드에선 <b>/진단</b> 명령으로 볼 수 있어요.</p>
+  </footer>
+</div>
+<script type="application/json" id="diag-data">__DIAG_DATA__</script>
+<script>
+(() => {
+  'use strict';
+  const D = document;
+  const $ = (s) => D.querySelector(s);
+  const CHIP = { ok: '정상', warn: '주의', fail: '문제', info: '정보', wait: '진행', skip: '건너뜀' };
+  const KST = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  const t = (ms) => KST.format(new Date(ms));
+  const URL_RE = /(https?:\/\/[^\s)]+)/g;
+
+  // 긴 주소는 짧은 이름으로 (초대 링크 → "봇 초대 링크 열기")
+  function linkText(url) {
+    if (/oauth2\/authorize/.test(url)) return '봇 초대 링크 열기';
+    if (/developers\/applications/.test(url)) return 'Developer Portal';
+    if (url.length <= 48) return url;
+    try {
+      const u = new URL(url);
+      return u.host + (u.pathname.length > 18 ? u.pathname.slice(0, 18) + '…' : u.pathname);
+    } catch (e) {
+      return url.slice(0, 45) + '…';
+    }
+  }
+
+  // 텍스트 안의 주소는 링크로 (innerHTML 안 씀)
+  function fill(el, text) {
+    el.textContent = '';
+    String(text ?? '').split(URL_RE).forEach((part, i) => {
+      if (i % 2) {
+        const a = D.createElement('a');
+        a.href = part;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = linkText(part);
+        a.title = part;
+        el.append(a);
+      } else if (part) el.append(part);
+    });
+    return el;
+  }
+  const make = (tag, cls, text) => {
+    const el = D.createElement(tag);
+    if (cls) el.className = cls;
+    if (text != null) fill(el, text);
+    return el;
+  };
+
+  let data = JSON.parse($('#diag-data').textContent);
+  let prevSig = '';
+
+  function render(d) {
+    // 상태
+    const st = $('#status');
+    const on = d.status === 'online';
+    st.className = 'status ' + (on ? 'on' : d.status === 'error' ? 'off' : 'wait');
+    st.lastElementChild.textContent = on ? `봇 온라인${d.bot && d.bot.ping != null ? ` ${d.bot.ping}ms` : ''}` : d.status === 'error' ? '봇 오프라인' : '접속 중';
+
+    // 핵심 문제
+    const h = d.headline;
+    const title = $('#v-title');
+    $('#v-label').textContent = h ? (h.status === 'fail' ? '지금 문제' : '확인 필요') : '지금 상태';
+    title.className = 'v-title' + (h ? '' : ' ok');
+    fill(title, h ? h.title : on ? '문제 없음 — 봇이 정상이에요' : '검사 중이에요');
+    const det = $('#v-detail');
+    det.hidden = !(h && h.detail);
+    if (h && h.detail) fill(det, h.detail);
+    const steps = $('#v-steps');
+    steps.textContent = '';
+    (h ? h.fix : []).forEach((f) => steps.append(make('li', '', f)));
+    steps.hidden = !(h && h.fix && h.fix.length);
+    const notes = [];
+    if (!on && d.nextRetryAt > Date.now()) notes.push(`다음 자동 재시도 ${t(d.nextRetryAt)}`);
+    if (d.lastRun) notes.push(`마지막 검사 ${t(d.lastRun)}`);
+    $('#v-note').textContent = notes.join(' · ');
+
+    // 그룹
+    const host = $('#groups');
+    host.textContent = '';
+    for (const g of d.groups) {
+      const sec = make('section', 'group');
+      sec.append(make('h2', '', g.label));
+      const ul = make('ul', 'rows');
+      for (const c of g.checks) {
+        const li = make('li', `row ${c.status}`);
+        li.append(make('span', `chip ${c.status}`, CHIP[c.status] || c.status));
+        const body = make('div');
+        body.append(make('div', 'r-title', c.title));
+        if (c.detail && c.status !== 'ok') body.append(make('div', 'r-detail', c.detail));
+        if ((c.status === 'fail' || c.status === 'warn') && c.fix && c.fix.length) {
+          if (h && c.id === h.id) body.append(make('div', 'r-ref', '해결 방법은 맨 위에 있어요'));
+          else {
+            const fx = make('ul', 'r-fix');
+            c.fix.forEach((f) => fx.append(make('li', '', f)));
+            body.append(fx);
+          }
+        }
+        li.append(body);
+        ul.append(li);
+      }
+      sec.append(ul);
+      host.append(sec);
+    }
+
+    // 접속 과정
+    const tl = $('#timeline');
+    tl.textContent = '';
+    (d.timeline || []).forEach((e) => {
+      const li = make('li');
+      li.append(make('time', '', `+${(e.at / 1000).toFixed(1)}s`));
+      li.append(make('span', '', e.label + (e.count > 1 ? ` (x${e.count})` : '')));
+      tl.append(li);
+    });
+    $('#tl-wrap').hidden = !(d.timeline && d.timeline.length);
+
+    // 최근 오류
+    const er = $('#errors');
+    er.textContent = '';
+    (d.errors || []).forEach((x) => {
+      const li = make('li', 'row fail');
+      li.append(make('span', 'chip warn', t(x.at).slice(0, 5)));
+      const body = make('div');
+      body.append(make('div', 'r-title', `${x.where} — ${x.title}${x.count > 1 ? ` (x${x.count})` : ''}`));
+      if (x.raw && x.raw !== x.title) body.append(make('div', 'r-detail', `원문: ${x.raw}`));
+      if (x.fix && x.fix.length) {
+        const fx = make('ul', 'r-fix');
+        x.fix.forEach((f) => fx.append(make('li', '', f)));
+        body.append(fx);
+      }
+      li.append(body);
+      er.append(li);
+    });
+    $('#err-wrap').hidden = !(d.errors && d.errors.length);
+
+    $('#foot').textContent = `서버 가동 ${Math.floor((d.uptimeSec || 0) / 60)}분 · ${on ? '20초' : '5초'}마다 새로 불러와요`;
+
+    const sig = JSON.stringify([h && h.title, d.status]);
+    if (prevSig && sig !== prevSig) $('.verdict').classList.add('fresh');
+    prevSig = sig;
+  }
+
+  async function load(run) {
+    try {
+      const r = await fetch('/api/diag' + (run ? '?run=1' : ''), { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      data = await r.json();
+      render(data);
+    } catch (e) {
+      $('#status').className = 'status off';
+      $('#status').lastElementChild.textContent = '서버 연결 끊김';
+    }
+  }
+
+  const btn = $('#rerun');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = '검사 중…';
+    await load(true);
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 2500));
+      await load(false);
+    }
+    btn.disabled = false;
+    btn.textContent = '지금 다시 검사';
+  });
+
+  render(data);
+  (function loop() {
+    setTimeout(async () => {
+      if (!D.hidden) await load(false);
+      loop();
+    }, data.status === 'online' ? 20000 : 5000);
+  })();
+})();
+</script>
+</body>
+</html>

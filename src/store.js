@@ -7,6 +7,7 @@ const path = require('path');
 const { ChannelType, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
 const cfg = require('./config');
 const { normalizeState } = require('./league');
+const errors = require('./diag/errors');
 
 const FILE_NAME = 'fifa-war-db.json';
 const KEEP = 5; // 백업 메시지 최근 5개 보관
@@ -34,7 +35,7 @@ class Store {
     if (!e.loading) {
       e.loading = this._load(gid, e)
         .catch((err) => {
-          console.error('[store] 로드 실패 → 빈 데이터로 시작:', err);
+          errors.record(err, '전적 불러오기 (빈 데이터로 시작)', { guildId: gid });
           e.noPrune = true;
           return normalizeState(null);
         })
@@ -74,7 +75,7 @@ class Store {
     if (!e?.state) return;
     clearTimeout(e.timer);
     e.timer = setTimeout(() => {
-      this.flush(gid).catch((err) => console.error('[store] 저장 오류:', err));
+      this.flush(gid).catch((err) => errors.record(err, '전적 저장', { guildId: gid }));
     }, cfg.TIMING.saveDebounceMs);
   }
 
@@ -166,7 +167,7 @@ class Store {
         reason: '피파 전쟁 봇 전적 백업용 (Render 무료 플랜 대응)',
       })
       .catch((err) => {
-        console.warn(`[store] ${guild.name}: 데이터 채널 생성 실패 → ${err.message}`);
+        errors.record(err, `#${cfg.DATA_CHANNEL_NAME} 백업 채널 만들기`, { guildId: guild.id });
         return null;
       });
     if (created) console.log(`[store] ${guild.name}: 숨김 채널 #${created.name} 생성`);
@@ -221,7 +222,7 @@ class Store {
         return;
       } catch (err) {
         e.lastError = err.message;
-        console.warn(`[store] 디스코드 백업 실패 (${attempt}/2): ${err.message}`);
+        errors.record(err, `전적 백업 저장 (${attempt}/2)`, { guildId: gid });
         if (attempt === 1 && (err.code === 10003 || err.code === 50001)) {
           // 채널이 지워졌거나 접근 불가 → 다시 찾기/생성
           const guild = await client.guilds.fetch(gid).catch(() => null);

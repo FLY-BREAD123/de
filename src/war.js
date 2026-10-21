@@ -6,6 +6,7 @@ const { MessageFlags } = require('discord.js');
 const cfg = require('./config');
 const L = require('./league');
 const V = require('./views');
+const errors = require('./diag/errors');
 
 const EPH = MessageFlags.Ephemeral;
 const NONE = { parse: [] };
@@ -31,7 +32,7 @@ async function editRef(ref, payload) {
     const ch = await getClient().channels.fetch(ref.channelId);
     return await ch.messages.edit(ref.messageId, { allowedMentions: NONE, ...payload });
   } catch (err) {
-    console.warn('[war] 메시지 수정 실패:', err.message);
+    errors.record(err, '경보/DM 메시지 수정');
     return null;
   }
 }
@@ -42,7 +43,7 @@ async function sendRef(ref, payload) {
     const ch = await getClient().channels.fetch(ref.channelId);
     return await ch.send(payload);
   } catch (err) {
-    console.warn('[war] 메시지 전송 실패:', err.message);
+    errors.record(err, '경보 채널 메시지 전송');
     return null;
   }
 }
@@ -66,7 +67,7 @@ function arm(m) {
   timers.set(
     tkey(m),
     setTimeout(() => {
-      onDeadline(m.guildId, m.id).catch((err) => console.error('[war] 타이머 처리 오류:', err));
+      onDeadline(m.guildId, m.id).catch((err) => errors.record(err, '전쟁 시간 만료 처리', { guildId: m.guildId }));
     }, delay),
   );
 }
@@ -174,7 +175,7 @@ async function declareWar(src) {
   let alertMsg = null;
   if (alertCh) {
     alertMsg = await alertCh.send(alertPayload).catch((err) => {
-      console.warn(`[war] 경보 채널(#${alertCh.name}) 전송 실패: ${err.message}`);
+      errors.record(err, `경보 채널 #${alertCh.name} 에 경보 보내기`, { guildId: guild.id });
       return null;
     });
   }
@@ -367,7 +368,7 @@ async function finalize(st, m, { interaction = null, auto = false } = {}) {
   const payload = V.resultPayload(m, st, res, { auto });
   if (interaction) {
     await interaction.update(payload).catch(async (err) => {
-      console.warn('[war] 결과 표시 실패 → 직접 수정:', err.message);
+      errors.record(err, '경기 결과 표시', { guildId: m.guildId, quiet: true });
       await editRef(m.alert, payload);
     });
   } else {

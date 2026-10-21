@@ -28,14 +28,55 @@ const bool = (key, def) => {
   return ['1', 'true', 'yes', 'on', 'y'].includes(v);
 };
 
-// 토큰 붙여넣기 실수(따옴표, "Bot " 접두사, 공백) 자동 정리
-const TOKEN = env('DISCORD_TOKEN')
-  .replace(/^["'`]+|["'`]+$/g, '')
-  .replace(/^Bot\s+/i, '')
-  .replace(/\s+/g, '');
+// ───────── 토큰 찾기 ─────────
+// 환경변수 이름 오타(BOT_TOKEN, TOKEN, 이름에 공백·보이지 않는 글자)도 찾아서 쓰고, 진단에 어떤 이름을 썼는지 남김
+const TOKEN_KEYS = ['DISCORD_TOKEN', 'DISCORD_BOT_TOKEN', 'BOT_TOKEN', 'TOKEN'];
+const INV_CHARS = [0x200b, 0x200c, 0x200d, 0x2060, 0xfeff].map((c) => String.fromCharCode(c)).join('');
+const INVISIBLE = new RegExp(`[${INV_CHARS}]`, 'g');
+const HAS_INVISIBLE = new RegExp(`[${INV_CHARS}]`);
+const normKey = (k) => k.replace(INVISIBLE, '').replace(/\s+/g, '').replace(/-/g, '_').toUpperCase();
+
+function findToken() {
+  const direct = process.env.DISCORD_TOKEN;
+  if (direct && direct.trim()) return { key: 'DISCORD_TOKEN', raw: direct };
+  for (const k of TOKEN_KEYS.slice(1)) {
+    if (process.env[k] && process.env[k].trim()) return { key: k, raw: process.env[k] };
+  }
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v && v.trim() && TOKEN_KEYS.includes(normKey(k))) return { key: k, raw: v };
+  }
+  return { key: '', raw: '' };
+}
+
+// 붙여넣기 실수(따옴표, "Bot " 접두사, 공백, 보이지 않는 글자) 자동 정리 + 뭘 고쳤는지 기록
+function cleanToken(raw) {
+  const issues = [];
+  let t = String(raw || '');
+  if (HAS_INVISIBLE.test(t)) issues.push('보이지 않는 글자');
+  t = t.replace(INVISIBLE, '');
+  if (t !== t.trim()) issues.push('앞뒤 공백');
+  t = t.trim();
+  if (/^["'`]|["'`]$/.test(t)) issues.push('따옴표');
+  t = t.replace(/^["'`]+|["'`]+$/g, '');
+  if (/^Bot\s+/i.test(t)) issues.push('"Bot " 접두사');
+  t = t.replace(/^Bot\s+/i, '');
+  if (/\s/.test(t)) issues.push('중간 공백·줄바꿈');
+  t = t.replace(/\s+/g, '');
+  return { token: t, issues };
+}
+
+const found = findToken();
+const cleaned = cleanToken(found.raw);
+const TOKEN = cleaned.token;
 
 module.exports = {
   TOKEN,
+  TOKEN_KEY: found.key, // 실제로 토큰을 읽은 환경변수 이름
+  TOKEN_ISSUES: cleaned.issues, // 자동으로 고친 붙여넣기 실수
+  // 테스트용 (평소엔 비워둠): 디스코드 API·게이트웨이 주소 바꾸기
+  DISCORD_API: (env('FW_DISCORD_API') || 'https://discord.com/api').replace(/\/+$/, ''),
+  LOGIN_TIMEOUT_MS: Number(env('FW_LOGIN_TIMEOUT_MS')) || 90 * 1000, // 이 시간 안에 접속 못 하면 멈춘 단계 진단 후 재시도
+  DIAG_PUBLIC: bool('DIAG_PUBLIC', true), // /diag 진단 페이지 공개 여부
   PORT: Number(env('PORT', '3000')) || 3000,
   // Render가 자동으로 넣어주는 공개 주소 → 셀프핑으로 잠들기 방지
   PUBLIC_URL: (env('KEEPALIVE_URL') || env('RENDER_EXTERNAL_URL')).replace(/\/+$/, ''),

@@ -10,6 +10,8 @@ const cfg = require('./config');
 const L = require('./league');
 
 const TEMPLATE = fs.readFileSync(path.join(__dirname, 'board.html'), 'utf8');
+const DIAG_TEMPLATE = fs.readFileSync(path.join(__dirname, 'diag', 'page.html'), 'utf8');
+let diagRef = null; // start() 에서 연결
 const FAVICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#000"/>' +
   '<rect x="14" y="12" width="16" height="40" rx="4" fill="#fff"/><rect x="34" y="12" width="16" height="40" rx="4" fill="#fff"/>' +
@@ -31,7 +33,16 @@ function health(runtime) {
     textCommands: runtime.textEnabled,
     uptimeSec: Math.round(process.uptime()),
     error: ready ? null : runtime.error || null,
+    problem: problem(),
+    diag: cfg.DIAG_PUBLIC ? '/diag' : null,
   };
+}
+
+// 진단의 핵심 문제 1개 (순위표·health 에 같이 표시)
+function problem() {
+  const h = diagRef?.headline?.();
+  if (!h) return null;
+  return { status: h.status, title: h.title, fix: (h.fix || []).slice(0, 4) };
 }
 
 function boards(runtime, store) {
@@ -108,18 +119,33 @@ function page(runtime, store) {
   return TEMPLATE.replace('__FW_DATA__', () => json);
 }
 
+function diagPage() {
+  const json = scriptJson(diagRef.report());
+  return DIAG_TEMPLATE.replace('__DIAG_DATA__', () => json);
+}
+
+const withTimeout = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
+
 // ───────── 서버 ─────────
 function send(res, code, type, body, cache = 'no-store') {
   res.writeHead(code, { 'content-type': type, 'cache-control': cache, 'x-content-type-options': 'nosniff' });
   res.end(body);
 }
 
-function start({ runtime, store }) {
-  const server = http.createServer((req, res) => {
+function start({ runtime, store, diag }) {
+  diagRef = diag || null;
+  const server = http.createServer(async (req, res) => {
     try {
-      const p = new URL(req.url, 'http://local').pathname;
+      const url = new URL(req.url, 'http://local');
+      const p = url.pathname;
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'text/plain; charset=utf-8', '');
       if (p === '/health' || p === '/healthz') return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(health(runtime)));
+      if (p === '/diag' || p === '/api/diag') {
+        if (!diagRef || !cfg.DIAG_PUBLIC) return send(res, 404, 'text/plain; charset=utf-8', '진단 페이지 비공개 (DIAG_PUBLIC=false)');
+        if (p === '/diag') return send(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? undefined : diagPage());
+        if (url.searchParams.get('run') === '1') await withTimeout(diagRef.refresh(), 15000).catch(() => {});
+        return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(diagRef.report()));
+      }
       if (p === '/api/board') return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(payload(runtime, store)));
       if (p === '/favicon.svg' || p === '/favicon.ico') return send(res, 200, 'image/svg+xml', FAVICON, 'public, max-age=86400');
       if (p === '/' || p === '/index.html') {

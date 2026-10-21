@@ -44,6 +44,7 @@ code{font-family:inherit;font-size:.95em;font-weight:600;color:var(--ink);border
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ink) 40%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
 @keyframes blink{50%{opacity:.25}}
 .alert{margin:20px 0 0;padding:14px 16px;border:1.5px solid var(--ink);border-radius:10px;font-size:14px;line-height:1.65}
+.alert a{margin-left:4px;font-weight:700;color:var(--ink);text-underline-offset:3px;white-space:nowrap}
 .note{margin:0;padding:96px 0;text-align:center;color:var(--graphite)}
 
 /* 전광판 */
@@ -304,9 +305,17 @@ footer p{margin:0}
       : d.bot === 'reconnecting' ? '다시 연결 중'
       : d.bot === 'starting' ? '연결 중' : '봇 오프라인';
     const alert = $('#alert');
-    const msg = !netDown && !on && d.error ? d.error : '';
+    const p = netDown ? null : d.problem;
+    const showP = p && (!on || p.status === 'fail');
+    const msg = showP ? p.title : !netDown && !on && d.error ? d.error : '';
     alert.hidden = !msg;
     alert.textContent = msg;
+    if (msg && d.diag) {
+      const a = D.createElement('a');
+      a.href = d.diag;
+      a.textContent = '원인과 해결법 보기';
+      alert.append(' ', a);
+    }
     $('#foot').textContent = netDown
       ? '서버에 닿지 않아요. 잠시 후 자동으로 다시 시도해요.'
       : `20초마다 새로 불러와요. 봇 가동 ${uptime(d.uptimeSec || 0)}.`;
