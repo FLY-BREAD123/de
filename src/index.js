@@ -16,7 +16,7 @@ const { Diagnostics, errors } = require('./diag');
 
 const runtime = { client: null, status: 'starting', error: '', textEnabled: false, nextRetryAt: 0 };
 const store = new Store(() => runtime.client);
-const diag = new Diagnostics({ cfg, runtime, store, commandState: commands.state });
+const diag = new Diagnostics({ cfg, runtime, store, commandState: commands.state, commandNames: commands.JSON_DEFS.map((d) => d.name) });
 
 war.init({ store, getClient: () => runtime.client });
 commands.init({ store, runtime, diag });
@@ -64,6 +64,7 @@ async function setupGuild(guild) {
     errors.record(err, `서버 준비(${guild.name})`, { guildId: guild.id });
   }
   diag.runGuild(guild);
+  await diag.checkCommands(guild);
 }
 
 async function route(i) {

@@ -192,6 +192,7 @@ async function diagnose(i) {
   await i.deferReply({ flags: EPH });
   await diag.refresh({ minGapMs: 15000 }).catch(() => {});
   diag.runGuild(i.guild);
+  await diag.checkCommands(i.guild);
   return i.editReply({ embeds: [diag.embed(i.guild)], allowedMentions: NONE });
 }
 

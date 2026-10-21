@@ -18,6 +18,7 @@ const envCheck = require('./checks/env');
 const netCheck = require('./checks/net');
 const accountCheck = require('./checks/account');
 const guildCheck = require('./checks/guild');
+const commandCheck = require('./checks/commands');
 const { LoginTracker } = require('./tracker');
 const { explainError, closeCode } = require('./explain');
 const errors = require('./errors');
@@ -34,8 +35,9 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const UNRECOVERABLE = new Set([4004, 4010, 4011, 4012, 4013, 4014]);
 
 class Diagnostics {
-  constructor({ cfg, runtime, store, commandState }) {
+  constructor({ cfg, runtime, store, commandState, commandNames = [] }) {
     this.cfg = cfg;
+    this.commandNames = commandNames;
     this.runtime = runtime;
     this.store = store;
     this.commandState = commandState; // Map<guildId, {ok,count,error,code}>
@@ -234,12 +236,27 @@ class Diagnostics {
   }
 
   // ───────── 4단계: 서버별 검사 (접속 후) ─────────
+  replaceKeys(guildId, keys, list) {
+    for (const k of keys) this.checks.delete(`guild.${guildId}.${k}`);
+    for (const c of list) this.set(c);
+  }
+
   runGuild(guild) {
     try {
       const list = guildCheck.run(guild, { cfg: this.cfg, store: this.store, commandState: this.commandState });
-      this.replaceGroup(`guild.${guild.id}.`, list);
+      this.replaceKeys(guild.id, ['perms', 'commands', 'alert', 'role', 'backup'], list);
     } catch (err) {
       errors.record(err, `서버 검사(${guild.name})`, { quiet: true });
+    }
+  }
+
+  /** "/ 쳐도 명령어가 안 떠요" 원인 검사 (디스코드에 직접 물어봄) */
+  async checkCommands(guild) {
+    try {
+      const list = await commandCheck.run(guild, { expected: this.commandNames });
+      this.replaceKeys(guild.id, ['cmdlist', 'cmdperm', 'integration'], list);
+    } catch (err) {
+      errors.record(err, `명령어 검사(${guild.name})`, { quiet: true });
     }
   }
 
@@ -288,6 +305,7 @@ class Diagnostics {
           this.account = acc.result;
         }
         this.runGuilds(client);
+        await Promise.all(client.guilds.cache.map((g) => this.checkCommands(g)));
         this.lastRun = Date.now();
         return true;
       } catch (err) {
